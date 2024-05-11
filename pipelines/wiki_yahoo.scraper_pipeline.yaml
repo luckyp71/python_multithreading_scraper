@@ -1,0 +1,51 @@
+queues:
+  - name: SymbolQueue
+    description: contains symbol to be scraped from yahoo finance
+
+  - name: PostgresUploading
+    descriptions: contains data that needs to be uploaded to postgres
+
+#  - name: redisUploading
+#    descriptions: contains data that needs to be uploaded to redis
+
+workers:
+#  - name: URLSeeder
+#    input_values:
+#      - 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+#    output_queues:
+#      - URLOutputs
+
+  - name: WikiWorker
+    description: This scraps raw wikipedia page and pulls out symbols
+    note: Only have one instance here, otherwise we scarp the symbol multiple times
+    location: workers.WikiWorker
+    class: WikiWorkerMasterScheduler
+    instance: 1 # Please dont change this, otherwise we do duplicate work
+#    input_queue: URLOutputs
+    input_values:
+      - 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
+    output_queues:
+      - SymbolQueue
+
+  - name: YahooFinanceWorker
+    description: This scraps yahoo finance page and pulls out price
+    location: workers.YahooFinanceWorkers
+    class: YahooFinancePriceScheduler
+    instances: 10
+    input_queue: SymbolQueue
+    output_queues:
+      - PostgresUploading
+#      - redisUploading
+
+  - name: PostgresWorker
+    description: Take stock data and save in postgres
+    location: workers.PostgresWorker
+    class: PostgresMasterScheduler
+    instances: 5
+    input_queue: PostgresUploading
+
+#  - name: RedisWorker
+#    description: Take stock data and save in postgres
+#    location: workers.RedisWorker
+#    class: RedisMasterScheduler
+#    input_queue: redisUploading
