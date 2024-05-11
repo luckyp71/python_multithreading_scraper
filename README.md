@@ -1,5 +1,5 @@
 # Python Multithreading Scraper
 
-Scrap stock symbol from Wikipedia then get its current price from Yahoo Finance and finally load the data into PostgreSQL.
+Scrap stock symbols from Wikipedia then retrieve their current prices from Yahoo Finance, and finally load the data into PostgreSQL.
 <br/>
-All particular tasks above run concurrently by utilizing python multithread.
+All these tasks will run concurrently by utilizing python multithreading.
