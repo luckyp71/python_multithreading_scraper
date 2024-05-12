@@ -2,7 +2,7 @@ import importlib
 import threading
 import time
 import yaml
-from multiprocessing import Queue
+from multiprocessing import Queue, cpu_count
 
 
 class YamlPipelineExecutor(threading.Thread):
@@ -11,8 +11,9 @@ class YamlPipelineExecutor(threading.Thread):
         self._pipeline_location = pipeline_location
         self._queues = {}
         self._workers = {}
-        self._queue_consumers = {}
-        self._downstream_queues = {}
+        self._queue_consumers = {} # basically the info regarding how many workers are consuming on particular queue e.g. symbol queue
+        self._downstream_queues = {} # the worker and what queues it sends to
+        self._cpu_count = cpu_count()-2
 
     def _load_pipeline(self):
         with open(self._pipeline_location, 'r') as inFile:
@@ -21,7 +22,7 @@ class YamlPipelineExecutor(threading.Thread):
     def _initialize_queues(self):
         for queue in self._yaml_data['queues']:
             queue_name = queue['name']
-            self._queues[queue_name] = Queue()
+            self._queues[queue_name] = Queue() # queue is thread safe, so we don't need to worry about race condition
 
     def _initialize_workers(self):
         for worker in self._yaml_data['workers']:  # import workers.YahooFinanceWorker
@@ -29,7 +30,11 @@ class YamlPipelineExecutor(threading.Thread):
             input_queue = worker.get('input_queue')
             output_queues = worker.get('output_queues')
             worker_name = worker.get('name')
-            num_instances = worker.get('instances', 1) # get number of instances, if none default to 1
+            yaml_instance = worker.get('instances', 1)
+            if worker_name == 'YahooFinanceWorker':
+                num_instances = max(yaml_instance, self._cpu_count)
+            else:
+                num_instances = yaml_instance  # get number of instances, if none default to 1
 
             self._downstream_queues[worker_name] = output_queues
             if input_queue is not None:
